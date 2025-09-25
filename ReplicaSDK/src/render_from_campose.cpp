@@ -19,8 +19,13 @@ int main(int argc, char* argv[]) {
   ASSERT(pangolin::FileExists(meshFile));
   ASSERT(pangolin::FileExists(atlasFolder));
 
-  std::ifstream camPoses("/home/robotlab/dataset/Replica-Dataset-results/camPose.txt"); //相机位姿
-  std::string outFolder = "/home/robotlab/dataset/Replica-Dataset-results";     // 输出图片
+  std::ifstream camPoses("/home/robotlab/dataset/debug/camPose.txt"); //相机位姿
+  if (!camPoses.is_open()) {
+        std::cerr << "Failed to open camPose.txt" << std::endl;
+        exit(0);
+  }
+  std::string line; std::getline(camPoses, line);  // 跳过第一行（注释行）
+  std::string outFolder = "/home/robotlab/dataset/debug";     // 输出图片
 
   fs::create_directory(outFolder+"/rgb");
   fs::create_directory(outFolder+"/depth");
@@ -110,6 +115,8 @@ int main(int argc, char* argv[]) {
   double m10, m11, m12, m13;
   double m20, m21, m22, m23;
   double m30, m31, m32, m33;
+  std::cout<<"Start rendering"<<std::endl;
+
   while (camPoses >> frameId >> m00 >> m01 >> m02 >> m03 >> m10 >> m11 >> m12 >> m13 >> m20 >> m21 >> m22 >> m23 >> m30 >> m31 >> m32 >> m33) {
     std::cout << "\rRendering frame" << frameId << std::endl;  //std::cout << "\rRendering frame " << i + 1 << "/" << numFrames << "... ";
     // std::cout.flush();
@@ -168,7 +175,7 @@ int main(int argc, char* argv[]) {
     render.Download(image.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
     char filename[1000];
-    snprintf(filename, 1000, "%s/rgb/frame%s.jpg", outFolder.c_str(), frameId.c_str());   // snprintf(filename, 1000, "frame%06zu.jpg", i);
+    snprintf(filename, 1000, "%s/rgb/%s.png", outFolder.c_str(), frameId.c_str());   // snprintf(filename, 1000, "frame%06zu.jpg", i);
 
     pangolin::SaveImage(
         image.UnsafeReinterpret<uint8_t>(),
@@ -197,7 +204,7 @@ int main(int argc, char* argv[]) {
       for(size_t i = 0; i < depthImage.Area(); i++)
           depthImageInt[i] = static_cast<uint16_t>(depthImage[i] + 0.5f);
 
-      snprintf(filename, 1000, "%s/depth/depth%s.png", outFolder.c_str(), frameId.c_str());   //snprintf(filename, 1000, "depth%06zu.png", i);
+      snprintf(filename, 1000, "%s/depth/%s.png", outFolder.c_str(), frameId.c_str());   //snprintf(filename, 1000, "depth%06zu.png", i);
       pangolin::SaveImage(
           depthImageInt.UnsafeReinterpret<uint8_t>(),
           pangolin::PixelFormatFromString("GRAY16LE"),

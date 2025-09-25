@@ -81,6 +81,7 @@ struct FloatingHandler : pangolin::Handler {
   MouseOnState* last_mouse_on;
   std::ofstream* mpCamPoseFile;
   int frameCnt = 0;
+  bool mbWrite = false;
 
   pangolin::OpenGlRenderState *render_state;
   // std::optional<std::filesystem::path> output_dir;
@@ -126,12 +127,18 @@ struct FloatingHandler : pangolin::Handler {
       }
     }());
 
+    if (key == 'b') {
+        mbWrite = true;
+    } 
+
+
     const Eigen::Affine3d new_camera_from_world = new_camera_from_old_camera * rotation_transform * static_cast<Eigen::Affine3d>(render_state->GetModelViewMatrix()) ;
 
     render_state->SetModelViewMatrix(new_camera_from_world);
 
     Eigen::Matrix4d world2camPose = render_state->GetModelViewMatrix().Inverse();  // world. to camera
-    SaveCameraPose(world2camPose);
+    if(mbWrite)
+        WriteCameraPose(world2camPose);
   }
 
   void Mouse(pangolin::View &view, const pangolin::MouseButton button, const int x, const int y, const bool pressed, int button_state) {
@@ -172,12 +179,16 @@ struct FloatingHandler : pangolin::Handler {
 
   }
 
-  void SaveCameraPose(Eigen::Matrix4d& world2camPose){
+  void WriteCameraPose(Eigen::Matrix4d& world2camPose){
         *mpCamPoseFile << std::setfill('0') << std::setw(6) << frameCnt++ << " ";
         *mpCamPoseFile << world2camPose(0, 0) << " " << world2camPose(0, 1) << " " << world2camPose(0, 2) << " " << world2camPose(0, 3) << " "
                     << world2camPose(1, 0) << " " << world2camPose(1, 1) << " " << world2camPose(1, 2) << " " << world2camPose(1, 3) << " "
                     << world2camPose(2, 0) << " " << world2camPose(2, 1) << " " << world2camPose(2, 2) << " " << world2camPose(2, 3) << " "
                     << world2camPose(3, 0) << " " << world2camPose(3, 1) << " " << world2camPose(3, 2) << " " << world2camPose(3, 3) << std::endl;
+  }
+
+  void open_write(){
+      mbWrite = true;
   }
 };
 
