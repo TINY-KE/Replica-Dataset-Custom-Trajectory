@@ -70,69 +70,141 @@ void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc)
 struct FloatingHandler : pangolin::Handler {
   FloatingHandler(pangolin::OpenGlRenderState &render_state, std::ofstream& camPoseFile): 
     render_state(&render_state){
+      // 1. 相机轨迹的写入文件
       mpCamPoseFile = &camPoseFile;
+      
+      // 2. 相机模型坐标系 到 相机坐标系 的变换
+      // // 后续绕 Z -90°（顺时针），X -90°（右手系）
+      double deg2rad = M_PI / 180.0;
+      Eigen::Matrix3d R_z_neg90 = Eigen::AngleAxisd(-90 * deg2rad, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+      Eigen::Matrix3d R_x_pos90 = Eigen::AngleAxisd(-90 * deg2rad,  Eigen::Vector3d::UnitX()).toRotationMatrix();
+      Eigen::Matrix3d R_total = R_z_neg90 * R_x_pos90;
+      mT_cameralink_camera = Eigen::Matrix4d::Identity();
+      mT_cameralink_camera.block<3,3>(0,0) = R_total;
+
+      // 3. 初始化相机位姿
+      Eigen::Matrix4d world2camera = render_state.GetModelViewMatrix().Inverse();  // world. to camlink
+      Eigen::Matrix4d world2camlink = world2camera * mT_cameralink_camera.inverse();
+      ExtractMatrixAsXYZRPY(world2camlink, c_x, c_y, c_z, c_roll, c_pitch, c_yaw);
+      std::cout<<"Initial cam pose: x:"<<c_x<<", y:"<<c_y<<", z:"<<c_z<<", roll:"<<c_roll<<", pitch:"<<c_pitch<<", yaw:"<<c_yaw<<std::endl;
   }
-  
+
+
+  void ExtractMatrixAsXYZRPY(const Eigen::Matrix4d& T, double x_out, double y_out, double z_out, double roll_out, double pitch_out, double yaw_out) {
+      // 提取平移
+      Eigen::Vector3d t = T.block<3, 1>(0, 3);
+      x_out = t.x(), y_out = t.y(), z_out = t.z();
+
+      // 提取旋转矩阵
+      Eigen::Matrix3d R = T.block<3,3>(0,0);
+
+      // 欧拉角（ZYX顺序：yaw, pitch, roll）
+      Eigen::Vector3d euler = R.eulerAngles(2, 1, 0); // yaw(Z), pitch(Y), roll(X)
+      roll_out = euler[2];
+      pitch_out = euler[1];
+      yaw_out = euler[0];
+  }
+
+
   struct MouseOnState {
     Eigen::Vector3d start_axis;
     Eigen::Affine3d camera_from_world;
   };
 
+
   MouseOnState* last_mouse_on;
   std::ofstream* mpCamPoseFile;
   int frameCnt = 0;
   bool mbWrite = false;
+  double c_x, c_y, c_z=-0;
+  double c_roll, c_pitch, c_yaw;
+  // double roll=90.0, pitch=25.0, yaw=-65.0;
+  double v_linear = 0.1, v_angular = 0.05;
+  Eigen::Matrix4d mT_cameralink_camera; // 相机模型坐标系到相机坐标系的变换
+
 
   pangolin::OpenGlRenderState *render_state;
   // std::optional<std::filesystem::path> output_dir;
 
   void Keyboard(pangolin::View &, unsigned char key, int x, int y, bool pressed) {
+    Eigen::Matrix4d world2camPose1 = render_state->GetModelViewMatrix().Inverse();  // world. to camera
+    std::cout << "[读取]: " << world2camPose1 << std::endl;
     // const int key_int = static_cast<int>(key);
     if (!pressed) {
       return;
     }
-    constexpr double STEP = 0.2;
-    const Eigen::Translation3d new_camera_from_old_camera([&]() -> Eigen::Vector3d{
-      // 相机是右手坐标系，x轴正向向右，y轴正向向上，z轴正向向后
-      if (key == 'w') {
-        return -Eigen::Vector3d::UnitZ() * STEP;
-      } else if (key == 's') {
-        return Eigen::Vector3d::UnitZ() * STEP;   // z轴正向，向后
-      } else if (key == 'a') {
-        return Eigen::Vector3d::UnitX() * STEP;  // x轴正向，向右
-      } else if (key == 'd') {
-        return -Eigen::Vector3d::UnitX() * STEP;
-      } else if (key == 'e') {
-        return Eigen::Vector3d::UnitY() * STEP;  // y轴正向，向上
-      } else if (key == 'q') {
-        return -Eigen::Vector3d::UnitY() * STEP;
-      } else {
-        return Eigen::Vector3d::Zero();
-      }
-    }());
 
-    constexpr double ROT_ANGLE_RAD = 5.0 * M_PI / 180.0;
-    const Eigen::Affine3d rotation_transform([&]() -> Eigen::Affine3d {
-      switch (key) {
-        case 'i':  // ↑ UP arrow key (X 轴旋转)
-          return Eigen::Affine3d(Eigen::AngleAxisd(-ROT_ANGLE_RAD, Eigen::Vector3d::UnitX()));
-        case 'k':  // ↓ DOWN arrow key
-          return Eigen::Affine3d(Eigen::AngleAxisd(ROT_ANGLE_RAD, Eigen::Vector3d::UnitX()));
-        case 'j':  // ← LEFT arrow key (Y 轴旋转)
-          return Eigen::Affine3d(Eigen::AngleAxisd(ROT_ANGLE_RAD, Eigen::Vector3d::UnitY()));
-        case 'l':  // → RIGHT arrow key
-          return Eigen::Affine3d(Eigen::AngleAxisd(-ROT_ANGLE_RAD, Eigen::Vector3d::UnitY()));
+
+    switch (key) {
+        case 'w':
+            c_x += v_linear * cos(c_yaw);
+            c_y += v_linear * sin(c_yaw);
+            break;
+
+        case 's':
+            c_x -= v_linear * cos(c_yaw);
+            c_y -= v_linear * sin(c_yaw);
+            break;
+
+        case 'a':
+            c_x += v_linear * cos(c_yaw + M_PI / 2);
+            c_y += v_linear * sin(c_yaw + M_PI / 2);
+            break;
+
+        case 'd':
+            c_x -= v_linear * cos(c_yaw + M_PI / 2);
+            c_y -= v_linear * sin(c_yaw + M_PI / 2);
+            break;
+
+        case 'e':
+            c_z += v_linear;
+            break;
+
+        case 'q':
+            c_z -= v_linear;  // 你原来的代码这里写了 z += v_linear，可能是笔误
+            break;
+
+        case 'i':  // 仰视
+            c_pitch -= v_angular;
+            break;
+
+        case 'k':  // 俯视
+            c_pitch += v_angular;
+            break;
+
+        case 'j':  // 左转
+            c_yaw += v_angular;;
+            break;
+
+        case 'l':  // 右转
+            c_yaw -= v_angular;
+            break;
+
         default:
-          return Eigen::Affine3d::Identity();  // 不旋转
-      }
-    }());
+            // 其他按键不处理或添加其他功能
+            break;
+    }
 
     if (key == 'b') {
         mbWrite = true;
     } 
 
+    // 构造旋转矩阵 R（从欧拉角）
+    Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+    R = Eigen::AngleAxisd(c_yaw,   Eigen::Vector3d::UnitZ()) *  Eigen::AngleAxisd(c_pitch, Eigen::Vector3d::UnitY()) ;
 
-    const Eigen::Affine3d new_camera_from_world = new_camera_from_old_camera * rotation_transform * static_cast<Eigen::Affine3d>(render_state->GetModelViewMatrix()) ;
+    // 构造 SE(3) 齐次变换矩阵
+    Eigen::Matrix4d T_world_cameralink = Eigen::Matrix4d::Identity();
+    T_world_cameralink.block<3,3>(0,0) = R;
+    T_world_cameralink.block<3,1>(0,3) = Eigen::Vector3d(c_x, c_y, c_z);
+    std::cout << std::fixed << std::setprecision(6);
+    // std::cout << "[中心]: x:" << c_x << ", y:" << c_y  << ", z:" << c_z  << std::endl;
+    
+    // 应用变换：T_new = T_transform * T_cameralink
+    Eigen::Matrix4d Twc = T_world_cameralink  * mT_cameralink_camera;
+    Eigen::Matrix4d Tcw = Twc.inverse();
+
+    const Eigen::Affine3d new_camera_from_world(Tcw);
 
     render_state->SetModelViewMatrix(new_camera_from_world);
 
@@ -154,7 +226,6 @@ struct FloatingHandler : pangolin::Handler {
         static_cast<Eigen::Affine3d>(render_state->GetModelViewMatrix())
       };
     }
-
   }
 
   void MouseMotion(pangolin::View &view, const int x, const int y, int button_state) {

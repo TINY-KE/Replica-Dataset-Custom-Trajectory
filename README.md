@@ -13,7 +13,7 @@
     + DEMO：
     ./ReplicaCapturer mesh.ply textures [glass.sur] outFolder
     + 实例：
-    ./build/ReplicaSDK/ReplicaCapturer \
+    ./build/ReplicaSDK/write_campose \
     /media/robotlab/WD_BLACK1/Replica-Dataset/download/room_1/mesh.ply \
     /media/robotlab/WD_BLACK1/Replica-Dataset/download/room_1/textures \
     /home/robotlab/dataset/debug

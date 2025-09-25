@@ -68,9 +68,9 @@ target_link_libraries(render_from_campose
                       stdc++fs
 )
 
-add_executable(ReplicaCapturer src/capture.cpp src/MirrorSurface.cpp)
+add_executable(write_campose src/write_campose.cpp src/MirrorSurface.cpp)
 
-target_link_libraries(ReplicaCapturer
+target_link_libraries(write_campose
                       ${Pangolin_LIBRARIES}
                       ${dl_LIBRARIES}
                       GL
