@@ -14,6 +14,7 @@ if(NOT ${Eigen3_FOUND})
 endif()
 
 # use system Pangolin if available
+# set(Pangolin_DIR "/home/robotlab/dataset/Replica-Dataset-Custom-Trajectory/3rdparty/Pangolin/build")
 find_package(Pangolin)
 if(NOT ${Pangolin_FOUND})
     message(STATUS "Using 3rd party Pangolin")

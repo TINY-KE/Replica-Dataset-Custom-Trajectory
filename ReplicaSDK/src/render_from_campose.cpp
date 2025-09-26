@@ -37,8 +37,10 @@ int main(int argc, char* argv[]) {
     ASSERT(pangolin::FileExists(surfaceFile));
   }
 
-  const int width = 1280;  // FixMe
-  const int height = 960;
+  // const int width = 1280;  // FixMe
+  // const int height = 960;
+  const int width = 640;  // FixMe
+  const int height = 480;
   bool renderDepth = true;
   float depthScale = 65535.0f * 0.1f;
 

@@ -83,10 +83,14 @@ struct FloatingHandler : pangolin::Handler {
       mT_cameralink_camera.block<3,3>(0,0) = R_total;
 
       // 3. 初始化相机位姿
-      Eigen::Matrix4d world2camera = render_state.GetModelViewMatrix().Inverse();  // world. to camlink
-      Eigen::Matrix4d world2camlink = world2camera * mT_cameralink_camera.inverse();
-      ExtractMatrixAsXYZRPY(world2camlink, c_x, c_y, c_z, c_roll, c_pitch, c_yaw);
-      std::cout<<"Initial cam pose: x:"<<c_x<<", y:"<<c_y<<", z:"<<c_z<<", roll:"<<c_roll<<", pitch:"<<c_pitch<<", yaw:"<<c_yaw<<std::endl;
+      // Eigen::Matrix4d world2camera = render_state.GetModelViewMatrix().Inverse();  // world. to camlink
+      // Eigen::Matrix4d world2camlink = world2camera * mT_cameralink_camera.inverse();
+      // ExtractMatrixAsXYZRPY(world2camlink, c_x, c_y, c_z, c_roll, c_pitch, c_yaw);
+      // std::cout<<"Initial camlink pose: x:"<<c_x<<", y:"<<c_y<<", z:"<<c_z<<", roll:"<<c_roll<<", pitch:"<<c_pitch<<", yaw:"<<c_yaw<<std::endl;
+      // room_1
+      // c_x=-4.414482, c_y=-1.127413, c_z=0.000000, c_roll=0.000000, c_pitch=0.000000, c_yaw=0.450000;
+      // hotel_0
+      c_x=5.260820, c_y=0.938688, c_z=0.000000, c_roll=0.000000, c_pitch=0.000000, c_yaw=3.100000;
   }
 
 
@@ -119,7 +123,7 @@ struct FloatingHandler : pangolin::Handler {
   double c_x, c_y, c_z=-0;
   double c_roll, c_pitch, c_yaw;
   // double roll=90.0, pitch=25.0, yaw=-65.0;
-  double v_linear = 0.1, v_angular = 0.05;
+  double v_linear = 0.1/2, v_angular = 0.05/2;
   Eigen::Matrix4d mT_cameralink_camera; // 相机模型坐标系到相机坐标系的变换
 
 
@@ -127,9 +131,6 @@ struct FloatingHandler : pangolin::Handler {
   // std::optional<std::filesystem::path> output_dir;
 
   void Keyboard(pangolin::View &, unsigned char key, int x, int y, bool pressed) {
-    Eigen::Matrix4d world2camPose1 = render_state->GetModelViewMatrix().Inverse();  // world. to camera
-    std::cout << "[读取]: " << world2camPose1 << std::endl;
-    // const int key_int = static_cast<int>(key);
     if (!pressed) {
       return;
     }
@@ -188,6 +189,8 @@ struct FloatingHandler : pangolin::Handler {
     if (key == 'b') {
         mbWrite = true;
     } 
+
+      std::cout<<"camlink pose: x:"<<c_x<<", y:"<<c_y<<", z:"<<c_z<<", roll:"<<c_roll<<", pitch:"<<c_pitch<<", yaw:"<<c_yaw<<std::endl;
 
     // 构造旋转矩阵 R（从欧拉角）
     Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
@@ -291,8 +294,10 @@ int main(int argc, char* argv[]) {
   }
 
   const int uiWidth = 180;
-  const int width = 1280;
-  const int height = 960;
+  // const int width = 1280;
+  // const int height = 960;
+  const int  width = 640;
+  const int height = 480;
   bool renderDepth = true;
   // float depthScale = 65535.0f * 0.1f;
   
